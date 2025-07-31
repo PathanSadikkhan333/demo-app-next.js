@@ -2,14 +2,14 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useState } from "react";
-import { Card, CardContent } from ".@/components/ui
-import { Avatar, AvatarImage } from "@/components/ui
-import { Textarea } from "@/components/ui
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { Textarea } from "@/components/ui/textarea";
 import { ImageIcon, Loader2Icon, SendIcon } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@/components/ui/button";
 import { createPost } from "@/actions/post.action";
 import toast from "react-hot-toast";
-import ImageUpload from "./ImageUpload"; // Make sure this path is correct
+import ImageUpload from "./ImageUpload";
 
 function CreatePost() {
   const { user } = useUser();
@@ -18,20 +18,16 @@ function CreatePost() {
   const [isPosting, setIsPosting] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
 
-  // Prevent submit if no content and no imageUrl
   const handleSubmit = async () => {
     if (!content.trim() && !imageUrl) return;
 
     setIsPosting(true);
-
     try {
       const result = await createPost(content.trim(), imageUrl);
       if (result?.success) {
-        // Reset form fields after successful post
         setContent("");
         setImageUrl("");
         setShowImageUpload(false);
-
         toast.success("Post created successfully");
       } else {
         toast.error("Failed to create post");
@@ -50,7 +46,7 @@ function CreatePost() {
         <div className="space-y-4">
           <div className="flex space-x-4">
             <Avatar className="w-10 h-10">
-              <AvatarImage src={user?.imageUrl || "/avatar.png"} alt="User Avatar" />
+              <AvatarImage src={user?.imageUrl || "/avatar.png"} alt="User avatar" />
             </Avatar>
             <Textarea
               placeholder="What's on your mind?"
