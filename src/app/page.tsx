@@ -1,19 +1,20 @@
-//import  CreatePost from "@/components/ui/CreatePost";
+import CreatePost from "@/components/ui/CreatePost";
 import { currentUser } from "@clerk/nextjs/server";
+import WhoToFollow from "@/components/ui/WhoToFollow";
+// Capitalize the component name
 
 export default async function Home() {
- const user=await currentUser();
+  const user = await currentUser();
 
-  return ( 
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+      <div className="lg:col-span-6">
+        {user ? <CreatePost /> : null}
+      </div>
 
-<div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
-  <div className="lg:col-span-6">
-// {user ? <CreatePost/> :null }   //if user is authenticated the createpost will be opened
-  </div>
-
-  <div className="hidden lg:block lg:col-span-4 sticky top-20">
-       whotofollow
-   </div>
-  </div>
-);
+      <div className="hidden lg:block lg:col-span-4 sticky top-20">
+        < WhoToFollow />   {/* Use the uppercase component */}
+      </div>
+    </div>
+  );
 }
