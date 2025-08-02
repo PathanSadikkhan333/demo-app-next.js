@@ -1,7 +1,6 @@
-import { currentUser } from "@clerk/nextjs/server";
-import { Card, CardHeader, CardContent, CardFooter, CardTitle, CardDescription } from "@/components/ui/card";
 
-//import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { currentUser } from "@clerk/nextjs/server";
+import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { SignInButton, SignUpButton } from "@clerk/nextjs";
 import { Button } from '@/components/ui/button';
 import { getUserByClerkId } from "@/actions/user.action";
@@ -10,12 +9,43 @@ import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { LinkIcon, MapPinIcon } from "lucide-react";
 
+// Component to show when user is not authenticated
+function UnAuthenticatedSidebar() {
+  return (
+    <div className="sticky top-20">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-center text-xl font-semibold">Welcome Back!</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-center text-muted-foreground mb-4">
+            Login to access your profile and connect with others.
+          </p>
+          <SignInButton mode="modal">
+            <Button className="w-full" variant="outline">
+              Login
+            </Button>
+          </SignInButton>
+          <SignUpButton mode="modal">
+            <Button className="w-full mt-2" variant="default">
+              Sign Up
+            </Button>
+          </SignUpButton>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 async function Sidebar() {
   const authUser = await currentUser();
-  if (!authUser) return <UnAuthenticatedSidebar />;
+  
+  if (!authUser) {
+    return <UnAuthenticatedSidebar />;
+  }
 
   const user = await getUserByClerkId(authUser.id);
-  if (!user) return null;
+  if (!user) return null; // Or a loading/fallback UI if desired
 
   return (
     <div className="sticky top-20">
@@ -26,8 +56,8 @@ async function Sidebar() {
               href={`/profile/${user.username}`}
               className="flex flex-col items-center justify-center"
             >
-              <Avatar className="w-20 h-20 border-2 ">
-                <AvatarImage src={user.image || "/avatar.png"} />
+              <Avatar className="w-20 h-20 border-2">
+                <AvatarImage src={user.image ?? "/avatar.png"} />
               </Avatar>
 
               <div className="mt-4 space-y-1">
@@ -62,7 +92,7 @@ async function Sidebar() {
               <div className="flex items-center text-muted-foreground">
                 <LinkIcon className="w-4 h-4 mr-2 shrink-0" />
                 {user.website ? (
-                  <a href={`${user.website}`} className="hover:underline truncate" target="_blank">
+                  <a href={user.website} target="_blank" rel="noreferrer" className="hover:underline truncate">
                     {user.website}
                   </a>
                 ) : (
@@ -78,28 +108,3 @@ async function Sidebar() {
 }
 
 export default Sidebar;
-
-const UnAuthenticatedSidebar = () => (
-  <div className="sticky top-20">
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-center text-xl font-semibold">Welcome Back!</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-center text-muted-foreground mb-4">
-          Login to access your profile and connect with others.
-        </p>
-        <SignInButton mode="modal">
-          <Button className="w-full" variant="outline">
-            Login
-          </Button>
-        </SignInButton>
-        <SignUpButton mode="modal">
-          <Button className="w-full mt-2" variant="default">
-            Sign Up
-          </Button>
-        </SignUpButton>
-      </CardContent>
-    </Card>
-  </div>
-);
