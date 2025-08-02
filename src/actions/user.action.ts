@@ -1,33 +1,36 @@
+
+
+
 "use server";
 
 import prisma from "@/lib/prisma";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { userAgent, userAgentFromString } from "next/server";
 import { revalidatePath } from "next/cache";
 
-
+/**
+ * Syncs the authenticated Clerk user with the database,
+ * creating a user record if it doesn't exist.
+ */
 export async function syncUser() {
   try {
     const { userId } = await auth();
     const user = await currentUser();
 
-    // Early return if missing userId or user to avoid unnecessary DB calls
+    // Early return if not authenticated or user info missing
     if (!userId || !user) {
-      return null;  // Or handle as you prefer
+      return null;
     }
 
-    // Check if the user already exists in the database
+    // Check if user already exists in DB
     const existingUser = await prisma.user.findUnique({
-      where: {
-        clerkId: userId, // Make sure 'clerkId' is the correct field name in your Prisma schema
-      },
+      where: { clerkId: userId },
     });
 
     if (existingUser) {
       return existingUser;
     }
 
-    // Create a new user record if not found
+    // Create new user record
     const dbUser = await prisma.user.create({
       data: {
         clerkId: userId,
@@ -44,86 +47,107 @@ export async function syncUser() {
     return dbUser;
   } catch (error) {
     console.error("Error in syncUser:", error);
-    throw error; // Optionally rethrow the error depending on your error handling strategy
+    throw error;
   }
 }
 
-
-export async function getUserByClerkId(clerkId:string){
+/**
+ * Fetch user by their Clerk ID including counts of relations.
+ */
+export async function getUserByClerkId(clerkId: string) {
   return prisma.user.findUnique({
-    where:{
-      clerkId,
-    },
-    include:{
-      _count:{
-        select:{
-          followers:true,
-          following:true,
-          post:true,
+    where: { clerkId },
+    include: {
+      _count: {
+        select: {
+          followers: true,
+          following: true,
+          post: true,
         },
       },
     },
   });
 }
 
+/**
+ * Gets the database user ID corresponding to the authenticated Clerk user.
+ * Throws an error if not authenticated or user not found.
+ */
+export async function getDbUserId() {
+  const { userId: clerkId } = await auth();
 
-export async function getDbUserId(){
-  const {userId:clerkId} =await auth();
-  if(!clerkId)throw new Error("Unauthorized");
+  if (!clerkId) {
+    throw new Error("User is not authenticated");
+  }
 
   const user = await getUserByClerkId(clerkId);
 
-  if(!user) throw new Error("User not found");
-  return user.id
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  return user.id;
 }
 
-export async function getRandomUsers(){
-  try{
-    const userId=await getDbUserId();
-    //get 3 random users exclude ourselves & users that we already follow
-     const randomUser= await prisma.user.findMany({
-      where:{
-        AND:[
-          {NOT:{id:userId}},  
+/**
+ * Fetch 3 random users excluding the current user and users already followed.
+ */
+export async function getRandomUsers() {
+  try {
+    const userId = await getDbUserId();
+
+    if (!userId) return [];
+
+    const randomUsers = await prisma.user.findMany({
+      where: {
+        AND: [
+          { NOT: { id: userId } },
           {
-            NOT:{
-              followers:{
-                some:{
-                  followerId:userId
-                }
-              }
-            }
+            NOT: {
+              followers: {
+                some: {
+                  followerId: userId,
+                },
+              },
+            },
           },
-        ]
+        ],
       },
-      select:{
-        id:true,
-        name:true,
-        username:true,
-        image:true,
-        _count:{
-          select:{
-            followers:true,
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        image: true,
+        _count: {
+          select: {
+            followers: true,
           },
-        }
+        },
       },
-      take:3,
-     })
-     return randomUser;
-  } catch(error){
-    console.log("Error feetching random users",error);
+      take: 3,
+    });
+
+    return randomUsers;
+  } catch (error) {
+    console.error("Error fetching random users:", error);
     return [];
   }
 }
 
-
+/**
+ * Toggles following/unfollowing a target user.
+ */
 export async function toggleFollow(targetUserId: string) {
   try {
     const userId = await getDbUserId();
 
-    if (!userId) return;
+    if (!userId) {
+      return { success: false, error: "User not authenticated" };
+    }
 
-    if (userId === targetUserId) throw new Error("You cannot follow yourself");
+    if (userId === targetUserId) {
+      throw new Error("You cannot follow yourself");
+    }
 
     const existingFollow = await prisma.follows.findUnique({
       where: {
@@ -135,7 +159,7 @@ export async function toggleFollow(targetUserId: string) {
     });
 
     if (existingFollow) {
-      // unfollow
+      // Unfollow
       await prisma.follows.delete({
         where: {
           followerId_followingId: {
@@ -145,7 +169,7 @@ export async function toggleFollow(targetUserId: string) {
         },
       });
     } else {
-      // follow
+      // Follow with notification in transaction
       await prisma.$transaction([
         prisma.follows.create({
           data: {
@@ -153,21 +177,26 @@ export async function toggleFollow(targetUserId: string) {
             followingId: targetUserId,
           },
         }),
-
         prisma.notification.create({
           data: {
             type: "FOLLOW",
-            userId: targetUserId, // user being followed
-            creatorId: userId, // user following
+            userId: targetUserId, // user who is followed
+            creatorId: userId, // user who follows
           },
         }),
       ]);
     }
 
-    revalidatePath("/"); 
+    revalidatePath("/"); // Invalidate homepage cache or relevant paths
+
     return { success: true };
   } catch (error) {
-    console.log("Error in toggleFollow", error);
-    return { success: false, error: "Error toggling follow" };
+    console.error("Error in toggleFollow:", error);
+
+    // Provide the error message if available
+    const message =
+      error instanceof Error ? error.message : "Error toggling follow";
+
+    return { success: false, error: message };
   }
 }
