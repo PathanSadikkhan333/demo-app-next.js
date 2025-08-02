@@ -30,7 +30,7 @@ export async function getPosts() {
   try {
     const posts = await prisma.post.findMany({
       orderBy: {
-        createdAt: "desc",
+        createdAt: "desc",   //descending order 
       },
       include: {
         author: {
@@ -53,7 +53,7 @@ export async function getPosts() {
             },
           },
           orderBy: {
-            createdAt: "asc",
+            createdAt: "asc",   //asscending order
           },
         },
         like: {
