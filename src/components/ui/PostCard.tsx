@@ -8,7 +8,7 @@ import {
   toggleLike,
 } from "@/actions/post.action";
 import { SignInButton, useUser } from "@clerk/nextjs";
-import { AwaitedReactNode, JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal, useState } from "react";
+import { useState, Key, ReactElement, JSXElementConstructor, ReactNode, ReactPortal } from "react";
 import toast from "react-hot-toast";
 import { Card, CardContent } from "./card";
 import { Button } from "./button";
@@ -44,14 +44,12 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
     if (isLiking) return;
     try {
       setIsLiking(true);
-      // Optimistic UI update
-      setHasLiked((prev: any) => !prev);
+      setHasLiked((prev: boolean) => !prev);
       setOptimisticLikes((prev: number) => (hasLiked ? prev - 1 : prev + 1));
       await toggleLike(post.id);
     } catch (error: unknown) {
-      // Rollback optimistic update on error
       setOptimisticLikes(post._count.like);
-      setHasLiked(post.like.some((like: { userId: string | null; }) => like.userId === dbUserId));
+      setHasLiked(post.like.some((like: { userId: string | null }) => like.userId === dbUserId));
       toast.error("Failed to toggle like");
     } finally {
       setIsLiking(false);
@@ -81,19 +79,14 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
     try {
       setIsDeleting(true);
       const result = await deletePost(post.id);
-
       if (result?.success) {
         toast.success("Post deleted successfully");
       } else {
-        // Always throw a proper Error object with message
         throw new Error(result?.error ?? "Unknown error during delete");
       }
     } catch (error: unknown) {
-      // Defensive: handle if error is null/undefined or non-Error
       const message =
-        error instanceof Error
-          ? error.message
-          : "Failed to delete post due to unknown error";
+        error instanceof Error ? error.message : "Failed to delete post due to unknown error";
       toast.error(message);
     } finally {
       setIsDeleting(false);
@@ -104,48 +97,44 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
     <Card className="overflow-hidden">
       <CardContent className="p-4 sm:p-6">
         <div className="space-y-4">
+          {/* Username profile link at top */}
+          <div className="flex items-center justify-between mb-2">
+            <Link
+              href={`/profile/${post.author.username}`}
+              className="text-sm font-semibold text-primary hover:underline"
+            >
+              @{post.author.username}
+            </Link>
+            {dbUserId === post.author.id && (
+              <DeleteAlertDialog
+                isDeleting={isDeleting}
+                onDelete={handleDeletePost}
+              />
+            )}
+          </div>
           {/* Post Header */}
           <div className="flex space-x-3 sm:space-x-4">
-            <Link href={`/profile/${post.author.username}`}>
-              <Avatar className="w-8 h-8 sm:w-10 sm:h-10">
-                <AvatarImage src={post.author.image ?? "/avatar.png"} />
-              </Avatar>
-            </Link>
-
+            <Avatar className="w-8 h-8 sm:w-10 sm:h-10">
+              <AvatarImage src={post.author.image ?? "/avatar.png"} />
+            </Avatar>
             <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 truncate">
-                  <Link
-                    href={`/profile/${post.author.username}`}
-                    className="font-semibold truncate"
-                  >
-                    {post.author.name ?? post.author.username}
-                  </Link>
-                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <Link href={`/profile/${post.author.username}`}>
-                      @{post.author.username}
-                    </Link>
-                    <span>•</span>
-                    <span>
-                      {formatDistanceToNow(new Date(post.createdAt), {
-                        addSuffix: true,
-                      })}
-                    </span>
-                  </div>
+              <div>
+                <span className="font-semibold">
+                  {post.author.name ?? post.author.username}
+                </span>
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                  <span>
+                    {formatDistanceToNow(new Date(post.createdAt), {
+                      addSuffix: true,
+                    })}
+                  </span>
                 </div>
-                {dbUserId === post.author.id && (
-                  <DeleteAlertDialog
-                    isDeleting={isDeleting}
-                    onDelete={handleDeletePost}
-                  />
-                )}
               </div>
               <p className="mt-2 text-sm text-foreground break-words">
                 {post.content}
               </p>
             </div>
           </div>
-
           {/* Post Image */}
           {post.image && (
             <div className="rounded-lg overflow-hidden">
@@ -156,16 +145,13 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
               />
             </div>
           )}
-
           {/* Like & Comment Buttons */}
           <div className="flex items-center pt-2 space-x-4">
             {user ? (
               <Button
                 variant="ghost"
                 size="sm"
-                className={`text-muted-foreground gap-2 ${
-                  hasLiked ? "text-red-500 hover:text-red-600" : "hover:text-red-500"
-                }`}
+                className={`text-muted-foreground gap-2 ${hasLiked ? "text-red-500 hover:text-red-600" : "hover:text-red-500"}`}
                 onClick={handleLike}
                 disabled={isLiking}
               >
@@ -186,7 +172,6 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
                 </Button>
               </SignInButton>
             )}
-
             <Button
               variant="ghost"
               size="sm"
@@ -199,12 +184,11 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
               <span>{post.comments.length}</span>
             </Button>
           </div>
-
           {/* Comments Section */}
           {showComments && (
             <div className="space-y-4 pt-4 border-t">
               <div className="space-y-4">
-                {post.comments.map((comment: { id: Key | null | undefined; author: { image: any; name: string | number | bigint | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined; username: string | number | bigint | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined; }; createdAt: string | number | Date; content: string | number | bigint | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined; }) => (
+                {post.comments.map((comment: { id: Key | null | undefined; author: { image: any; name: ReactNode; username: ReactNode; }; createdAt: string | number | Date; content: ReactNode; }) => (
                   <div key={comment.id} className="flex space-x-3">
                     <Avatar className="w-8 flex-shrink-0 h-8">
                       <AvatarImage src={comment.author.image ?? "/avatar.png"} />
@@ -227,7 +211,6 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
                   </div>
                 ))}
               </div>
-
               {user ? (
                 <div className="flex space-x-3">
                   <Avatar className="w-8 flex-shrink-0 h-8">
