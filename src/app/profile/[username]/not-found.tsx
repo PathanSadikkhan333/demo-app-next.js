@@ -22,14 +22,14 @@ export default function NotFound() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button variant="default" asChild>
                 <Link href="/">
-                  <HomeIcon className="mr-2 size-4" />
+                  <HomeIcon className="mr-2 h-4 w-4" />
                   Back to Home
                 </Link>
               </Button>
 
               <Button variant="outline" asChild>
                 <Link href="/">
-                  <ArrowLeftIcon className="mr-2 size-4" />
+                  <ArrowLeftIcon className="mr-2 h-4 w-4" />
                   Home
                 </Link>
               </Button>
